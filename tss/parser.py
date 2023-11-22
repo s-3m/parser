@@ -8,7 +8,7 @@ from pprint import pprint
 
 agent = UserAgent()
 
-link = 'https://www.tss-russia.com/catalog/dvigateli/'
+link = 'https://www.tss-russia.com/catalog/blok-konteynery/'
 domen = 'https://www.tss-russia.com'
 
 
@@ -26,15 +26,37 @@ def get_data():
     # res = bs.findAll(class_='name')
     res = bs.find(class_='seometa-tags-wrapper').findAll('a')
 
-    # links_list = [domen + i['href'] for i in res]
+    # Получение списка ссылок на категории товаров
+    category_links_list = [domen + i['href'] for i in res]
 
-    links_list = ['https://www.tss-russia.com/product/salazki-pbk-7-5/']
+    # category_links_list = ["https://www.tss-russia.com/catalog/svarochnye-elektrostantsii/"]
 
-    pprint(links_list)
+    # Получение списка ссылок на карточки товаров с учётом пагинации
+    item_links_list = []
+    for category_link in category_links_list:
+        resp = requests.get(category_link, headers=headers).text
+        bs = BeautifulSoup(resp, 'lxml')
+        pagination = bs.find(class_='catalog-pagination')
+        max_pagination = 1
+        if pagination:
+            pagination = pagination.findAll('a')
+            max_pagination = int(pagination[-2].text)
+
+        for i in range(1, max_pagination + 1):
+            resp = requests.get(f"{category_link}?PAGEN_1={i}", headers=headers).text
+            bs = BeautifulSoup(resp, 'lxml')
+            bs_list = bs.findAll(class_="column large-6 xxlarge-8 column-info")
+            item_links = [domen + i.find('a').get("href") for i in bs_list]
+            item_links_list.extend(item_links)
+    item_links_list = set(item_links_list)
+    pprint(len(item_links_list))
+    exit()
+
+    pprint(item_links_list)
     print('\n')
 
-    for num, item_link in enumerate(links_list):
-        print(f'\rДелаю {num+1} из {len(links_list)}', end='')
+    for num, item_link in enumerate(item_links_list):
+        print(f'\rДелаю {num + 1} из {len(item_links_list)}', end='')
         resp = requests.get(item_link, headers=headers)
         bs = BeautifulSoup(resp.text, 'lxml')
         category = bs.find(class_='breadcrumbs').findAll('span')[1].text
@@ -50,18 +72,18 @@ def get_data():
         if not os.path.exists(f'{category}/{item_title}'):
             os.mkdir(f'{category}/{item_title}')
 
-        # img_folder = f'{category}/{item_title}/img'
-        # if not os.path.exists(img_folder):
-        #     os.mkdir(img_folder)
-        #
-        # images_tag = bs.find('div', class_='product-preview relative').findAll('a', class_="item")
-        # images_list_links = [domen + i.get('href') for i in images_tag]
-        #
-        # for i in images_list_links:
-        #     img_name = i.split('/')[-1]
-        #     resp = requests.get(i).content
-        #     with open(f'{img_folder}/{img_name}', 'wb') as file:
-        #         file.write(resp)
+        img_folder = f'{category}/{item_title}/img'
+        if not os.path.exists(img_folder):
+            os.mkdir(img_folder)
+
+        images_tag = bs.find('div', class_='product-preview relative').findAll('a', class_="item")
+        images_list_links = [domen + i.get('href') for i in images_tag]
+
+        for i in images_list_links:
+            img_name = i.split('/')[-1]
+            resp = requests.get(i).content
+            with open(f'{img_folder}/{img_name}', 'wb') as file:
+                file.write(resp)
 
         # ------------------------------ Получение ТХ ----------------------------
 
@@ -101,7 +123,6 @@ def get_data():
         tech_dict['title'] = item_title
         tech_dict['main_category'] = bs.findAll('li', itemprop='itemListElement')[1].find('a').text.strip()
         tech_dict['sub_category'] = bs.findAll('li', itemprop='itemListElement')[2].find('a').text.strip()
-
 
         with open(f'{category}/{item_title}/data.json', 'w', encoding='utf-8') as file:
             json.dump(tech_dict, file, indent=4, ensure_ascii=False)
