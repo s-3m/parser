@@ -36,9 +36,10 @@ def get_tool_data(link, headers=None):
                 tab_head_list = [head.text.strip().replace('\n\t\t\t', ' ').replace(' ', ' ') for head in tab_heads if
                                  head.text.strip() != '' and head.text.strip()[0].isalpha()]
                 row_td = row.find_all('td')
-                bs_self_category = row_td[0].find_previous_siblings('td', style=lambda
+                bs_self_category = product_rows[0].find('td', style=lambda
                     x: x and 'background-color: rgb(135, 206, 250);' in x)
-                self_category = bs_self_category[-1].text if bs_self_category else ''
+                bs_self_category_sub = tab_heads[0].find_parent('tr').find_previous_sibling('tr')
+                self_category = bs_self_category.text.split('\n')[0].strip().replace(' ', ' ') if bs_self_category is not None else bs_self_category_sub.text.strip().split('\n')[0].replace(' ', ' ')
                 product_data = []
 
                 img_name = slugify(row_td[0].text.strip())
